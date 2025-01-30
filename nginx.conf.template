@@ -8,18 +8,14 @@ http {
   # Enable IPv6 resolution
   resolver 127.0.0.11 ipv6=on;
 
-  # Define limit zone
+  # Define limit zone for rate limiting
   limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
-
-  # Enable session storage
-  keyval_zone zone=sessions:1m state=/tmp/sessions.keyval;
-  keyval $cookie_session $session zone=sessions;
 
   server {
     listen ${PORT};
     # Add IPv6 listener
     listen [::]:${PORT};
-    server_name _;
+    server_name localhost;
 
     # Custom error pages
     error_page 401 = @error401;
@@ -37,29 +33,24 @@ http {
     }
 
     location / {
-        # Check for valid session
-        if ($session = "") {
-            return 302 /login;
-        }
+        # Basic auth configuration
+        auth_basic "Restricted";
+        auth_basic_user_file /etc/nginx/.htpasswd;
         
-        auth_basic	"Restricted";
-        auth_basic_user_file	/etc/nginx/.htpasswd;
-        
+        # Proxy headers
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header Host $http_host;
         proxy_set_header X-Nginx-Proxy true;
-        proxy_http_version 1.1;
-
-        # For IPv6, wrap the address in square brackets
+        
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-XSS-Protection "1; mode=block";
+        add_header X-Content-Type-Options "nosniff";
+        add_header Referrer-Policy "strict-origin-when-cross-origin";
+        add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline';";
+        
         proxy_pass ${PROXY_PASS};
     }
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-XSS-Protection "1; mode=block";
-    add_header X-Content-Type-Options "nosniff";
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline';";
   }
 }
