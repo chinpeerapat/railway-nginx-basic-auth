@@ -8,13 +8,40 @@ http {
   # Enable IPv6 resolution
   resolver 127.0.0.11 ipv6=on;
 
+  # Define limit zone
+  limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
+
+  # Enable session storage
+  keyval_zone zone=sessions:1m state=/tmp/sessions.keyval;
+  keyval $cookie_session $session zone=sessions;
+
   server {
     listen ${PORT};
     # Add IPv6 listener
     listen [::]:${PORT};
     server_name _;
 
+    # Custom error pages
+    error_page 401 = @error401;
+
+    location @error401 {
+      return 302 /login;
+    }
+
+    # Serve the login page
+    location /login {
+      # Apply rate limiting
+      limit_req zone=login burst=5 nodelay;
+      auth_basic off;
+      try_files /html/login.html =404;
+    }
+
     location / {
+        # Check for valid session
+        if ($session = "") {
+            return 302 /login;
+        }
+        
         auth_basic	"Restricted";
         auth_basic_user_file	/etc/nginx/.htpasswd;
         
@@ -27,5 +54,12 @@ http {
         # For IPv6, wrap the address in square brackets
         proxy_pass ${PROXY_PASS};
     }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
+    add_header Referrer-Policy "strict-origin-when-cross-origin";
+    add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline';";
   }
 }
