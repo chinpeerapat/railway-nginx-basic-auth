@@ -88,7 +88,7 @@
 <body>
     <div class="login-container">
         <h2 style="text-align: center; margin-bottom: 2rem;">Welcome Back</h2>
-        <form id="loginForm" method="POST" action="/auth">
+        <form id="loginForm">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required autocomplete="username">
@@ -103,5 +103,42 @@
             </div>
         </form>
     </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const button = e.target.querySelector('button');
+            const error = document.getElementById('error');
+            
+            // Show loading state
+            button.disabled = true;
+            button.innerHTML = 'Logging in...';
+            error.style.display = 'none';
+            
+            try {
+                // Make request to protected endpoint with Basic Auth
+                const response = await fetch('/', {
+                    headers: {
+                        'Authorization': 'Basic ' + btoa(username + ':' + password)
+                    }
+                });
+                
+                if (response.ok) {
+                    // Redirect to the main page on success
+                    window.location.href = '/';
+                } else {
+                    error.style.display = 'block';
+                }
+            } catch (err) {
+                error.textContent = 'Network error. Please try again.';
+                error.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Log In';
+            }
+        });
+    </script>
 </body>
 </html> 
