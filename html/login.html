@@ -118,17 +118,24 @@
             error.style.display = 'none';
             
             try {
-                // Make request to protected endpoint with Basic Auth
+                // Store credentials in localStorage for subsequent requests
+                const authHeader = 'Basic ' + btoa(username + ':' + password);
+                
+                // Test authentication
                 const response = await fetch('/', {
                     headers: {
-                        'Authorization': 'Basic ' + btoa(username + ':' + password)
+                        'Authorization': authHeader
                     }
                 });
                 
                 if (response.ok) {
-                    // Redirect to the main page on success
+                    // Store auth header for future requests
+                    localStorage.setItem('auth_header', authHeader);
+                    
+                    // Redirect to the main application
                     window.location.href = '/';
                 } else {
+                    error.textContent = 'Invalid credentials. Please try again.';
                     error.style.display = 'block';
                 }
             } catch (err) {

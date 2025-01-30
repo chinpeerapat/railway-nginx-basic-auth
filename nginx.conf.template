@@ -32,7 +32,7 @@ http {
     }
 
     # Serve the login page
-    location /login {
+    location = /login {
       # Apply rate limiting
       limit_req zone=login burst=5 nodelay;
       auth_basic off;
@@ -44,9 +44,20 @@ http {
       add_header 'Access-Control-Allow-Headers' 'Authorization';
     }
 
-    # Handle OPTIONS requests for CORS
-    location = / {
-      if ($request_method = 'OPTIONS') {
+    # Handle authentication check
+    location = /auth-check {
+      internal;
+      auth_basic "Restricted";
+      auth_basic_user_file /etc/nginx/.htpasswd;
+      
+      # Return 200 if auth successful
+      return 200;
+    }
+
+    # Main location block
+    location / {
+      # Skip auth for OPTIONS requests
+      if ($request_method = OPTIONS) {
         add_header 'Access-Control-Allow-Origin' '*';
         add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
         add_header 'Access-Control-Allow-Headers' 'Authorization';
@@ -56,6 +67,7 @@ http {
         return 204;
       }
       
+      # Verify authentication
       auth_basic "Restricted";
       auth_basic_user_file /etc/nginx/.htpasswd;
       
@@ -63,6 +75,8 @@ http {
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header Host $http_host;
       proxy_set_header X-Nginx-Proxy true;
+      proxy_set_header Authorization $http_authorization;
+      proxy_pass_header Authorization;
       
       # Security headers
       add_header X-Frame-Options "SAMEORIGIN";
@@ -72,19 +86,12 @@ http {
       add_header Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';";
       
       proxy_pass ${PROXY_PASS};
-    }
-
-    # Handle all other paths
-    location / {
-      auth_basic "Restricted";
-      auth_basic_user_file /etc/nginx/.htpasswd;
+      proxy_redirect off;
       
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header Host $http_host;
-      proxy_set_header X-Nginx-Proxy true;
-      
-      proxy_pass ${PROXY_PASS};
+      # WebSocket support
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
     }
   }
 }
