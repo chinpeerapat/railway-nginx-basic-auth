@@ -11,12 +11,19 @@ http {
   # Define limit zone for rate limiting
   limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
 
+  # Add MIME types
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+
   server {
     listen ${PORT};
     # Add IPv6 listener
     listen [::]:${PORT};
     server_name localhost;
 
+    # Set root directory for static files
+    root /etc/nginx;
+    
     # Custom error pages
     error_page 401 = @error401;
 
@@ -29,7 +36,11 @@ http {
       # Apply rate limiting
       limit_req zone=login burst=5 nodelay;
       auth_basic off;
+      # Update the path to match the Dockerfile COPY destination
       try_files /html/login.html =404;
+      # Add access log for debugging
+      access_log /dev/stdout;
+      error_log /dev/stderr debug;
     }
 
     location / {

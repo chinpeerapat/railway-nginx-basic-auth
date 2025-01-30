@@ -10,6 +10,11 @@ RUN echo "proxy_pass: $PROXY_PASS\nport: $PORT\nusername: $USERNAME\npassword: $
 COPY ./nginx.conf.template /etc/nginx/nginx.conf.template
 RUN envsubst '$PROXY_PASS $PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
+# Create directory for static files
+RUN mkdir -p /etc/nginx/html
+
+# Copy static files
+COPY ./html/login.html /etc/nginx/html/
 
 ENV USERNAME=$USERNAME
 ENV PASSWORD=$PASSWORD
